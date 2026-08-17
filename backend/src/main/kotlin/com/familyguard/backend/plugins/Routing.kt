@@ -39,7 +39,7 @@ fun Application.configureRouting(jwtConfig: JwtConfig) {
             pairingRoutes(pairingService)
             deviceRoutes(pairingService)
             ruleRoutes(ruleService)
-            deviceFacingRoutes(usageService, ruleService, childService)
+            deviceFacingRoutes(usageService, ruleService, childService, accessRequestService)
             accessRequestRoutes(accessRequestService)
             dashboardRoutes(dashboardService)
         }

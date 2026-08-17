@@ -129,7 +129,12 @@ directly, but it's available for parity).
 ## Device-facing (device-authenticated; `deviceId`/`childId` always taken from the JWT)
 
 ### `GET /device/config`
-→ `200 { "childId": "...", "rules": [AppRule], "configVersion": 7, "syncIntervalSeconds": 900, "serverTimeUtc": "..." }`
+→ `200 { "childId": "...", "rules": [AppRule], "overrides": [AccessOverride], "configVersion": 7, "syncIntervalSeconds": 900, "serverTimeUtc": "..." }`
+`overrides` is every currently-active (not-yet-expired) grant from an approved access
+request for this child — see the Access requests section below. `AccessOverride` shape:
+`{ "packageName", "extraMinutes", "expiresAt" }`. The child app's `EnforcementDecider`
+adds `extraMinutes` on top of the matching `AppRule`'s limit; it does not replace or
+change `rules` itself.
 
 ### `POST /device/usage-sync`
 Request: `{ "events": [ { "packageName": "...", "usageDate": "2026-08-16", "durationMinutes": 32 } ] }`
@@ -165,13 +170,13 @@ when `approve: false`). → `200` AccessRequest object. `409 ACCESS_REQUEST_ALRE
 if called twice (atomic conditional update, same pattern as the pairing-claim race guard in
 `pairing-security.md`).
 
-**Honest limitation:** resolving a request only changes the `access_requests` row — it does
-not write a rule override or bump `children.config_version`, so approving one does not by
-itself make the child device stop restricting the app. Wiring that (a short-lived override
-the child app's `EnforcementDecider` consults alongside its standing rule) is exactly what
-`roadmap.md` describes and remains open; this endpoint pair covers the "ask / see and
-approve the ask" half of the flow, matching the parent-app UI, which is deliberately a
-one-tap approve/deny with no fresh network round-trip back to the device.
+Approving writes an `access_overrides` row (`docs/database-schema.md`) valid for 24 hours
+from approval — a rolling window, not "the rest of the device's local day", since the
+backend doesn't know the device's timezone at resolve time. It does **not** touch the
+standing `app_rules` row or bump `children.config_version` — the override is picked up by
+the next `GET /device/config` poll (≤15 minutes, `child-app/work/RuleSyncWorker.kt`), and
+`EnforcementDecider` combines it with the standing rule at decision time rather than the
+backend rewriting the rule itself.
 
 `AccessRequest` object shape: `{ "id", "childId", "packageName", "displayName",
 "requestedMinutes", "status": "pending"|"approved"|"denied", "resolvedMinutes",

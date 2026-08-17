@@ -142,9 +142,26 @@ forward-compatible.
 
 Index on `(child_id, status)` for the "list pending" query. No `schedule_id`-style FK here —
 a request is a one-off ask against the standing `app_rules` row, not a rule change itself.
-Resolving a request does **not** touch `app_rules` or bump `children.config_version`; it's
-purely informational for the parent today (see `roadmap.md`'s note on wiring an actual
-override).
+Resolving a request does **not** touch `app_rules` or bump `children.config_version`; it
+writes an `access_overrides` row instead (below).
+
+### `access_overrides`
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| child_id | uuid FK → children(id) ON DELETE CASCADE | |
+| app_id | uuid FK → apps(id) ON DELETE CASCADE | |
+| access_request_id | uuid FK → access_requests(id) ON DELETE CASCADE, UNIQUE | one override per approved request |
+| extra_minutes | int NOT NULL | copied from the request's `resolved_minutes` at approval time |
+| expires_at | timestamptz NOT NULL | `created_at + 24h` — a rolling window, not "end of the device's local day" (the backend doesn't know the device's timezone at resolve time; see `roadmap.md`) |
+| created_at | timestamptz | |
+
+Index on `(child_id, expires_at)` for the "active overrides for this child" query
+`GET /device/config` runs on every device poll. Created only on approval
+(`AccessRequestService.resolve`), never on deny. `EnforcementDecider` (child-app) adds
+`extra_minutes` on top of the standing `app_rules` row's limit at decision time — this
+table is never joined into rule-editing/dashboard queries, only into the device-facing
+config response.
 
 ## Deferred tables (see `roadmap.md` for detail)
 

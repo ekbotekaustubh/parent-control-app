@@ -1,17 +1,20 @@
 package com.familyguard.backend.services
 
+import com.familyguard.backend.db.tables.AccessOverridesTable
 import com.familyguard.backend.db.tables.AccessRequestStatusValues
 import com.familyguard.backend.db.tables.AccessRequestsTable
 import com.familyguard.backend.db.tables.AppsTable
 import com.familyguard.backend.db.tables.AuditActorType
 import com.familyguard.backend.db.tables.ChildrenTable
 import com.familyguard.backend.plugins.ApiException
+import com.familyguard.shared.dto.AccessOverrideResponse
 import com.familyguard.shared.dto.AccessRequestResponse
 import com.familyguard.shared.dto.CreateAccessRequestRequest
 import com.familyguard.shared.dto.ResolveAccessRequestRequest
 import com.familyguard.shared.enums.AccessRequestStatus
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.innerJoin
 import org.jetbrains.exposed.sql.selectAll
@@ -85,9 +88,37 @@ class AccessRequestService {
             throw ApiException.Conflict("ACCESS_REQUEST_ALREADY_RESOLVED", "This request has already been resolved.")
         }
 
+        if (request.approve && resolvedMinutes != null) {
+            AccessOverridesTable.insert {
+                it[childId] = owned[AccessRequestsTable.childId]
+                it[appId] = owned[AccessRequestsTable.appId]
+                it[accessRequestId] = requestId
+                it[extraMinutes] = resolvedMinutes
+                // Rolling 24h window, not "end of today": the backend doesn't know the
+                // device's local timezone at resolve time (see docs/roadmap.md's honest
+                // note on this), so a calendar-day cutoff isn't something it can compute
+                // correctly. A flat 24h grant is a deliberate simplification, not an oversight.
+                it[expiresAt] = OffsetDateTime.now().plusHours(24)
+            }
+        }
+
         AuditService.log(AuditActorType.PARENT, parentId, "access_request.resolved", "access_request", requestId)
 
         fetchById(requestId)
+    }
+
+    /** Active (not-yet-expired) overrides for a child — folded into `GET /device/config`. */
+    fun activeOverridesFor(childId: UUID): List<AccessOverrideResponse> = transaction {
+        (AccessOverridesTable innerJoin AppsTable)
+            .selectAll()
+            .where { (AccessOverridesTable.childId eq childId) and (AccessOverridesTable.expiresAt greater OffsetDateTime.now()) }
+            .map {
+                AccessOverrideResponse(
+                    packageName = it[AppsTable.packageName],
+                    extraMinutes = it[AccessOverridesTable.extraMinutes],
+                    expiresAt = it[AccessOverridesTable.expiresAt].format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+                )
+            }
     }
 
     private fun fetchById(id: UUID): AccessRequestResponse =

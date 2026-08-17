@@ -26,23 +26,24 @@ slice's enforcement mechanism (`UsageStatsManager`-based app blocking only).
 dashboard/enforcement logic would need a "most specific rule wins" resolution order
 (per-app > category > default).
 
-### Access requests ("child requests 20 more minutes") — partially built
-The `access_requests` table, `POST /device/access-requests` (device-authenticated create),
-`GET /access-requests` (parent, list pending), and `POST /access-requests/{id}/resolve`
-(parent, approve/deny) all exist now — see `docs/database-schema.md` and `docs/api-spec.md`.
-The child app's `RestrictionScreen` has an "Ask for N more minutes" button
-(`ui/restriction/RestrictionViewModel.kt`); the parent app has a "Time requests" inbox
-reachable from the child list's top bar (`ui/accessrequests/`).
+### Access requests ("child requests 20 more minutes") — built
+End to end: `access_requests` + `access_overrides` tables, `POST /device/access-requests`
+(device create), `GET /access-requests` (parent, list pending), `POST
+/access-requests/{id}/resolve` (parent, approve/deny — approval writes a 24h override
+row). Child app has an "Ask for N more minutes" button on `RestrictionScreen`
+(`ui/restriction/RestrictionViewModel.kt`) and `EnforcementDecider` combines any active
+override with the standing rule at decision time. Parent app has a "Time requests" inbox
+reachable from the child list's top bar (`ui/accessrequests/`). See `docs/database-schema.md`
+and `docs/api-spec.md` for the exact shapes.
 
-**Still open, deliberately not built in this pass:** approving a request does not yet write
-an enforcement override. It only flips the `access_requests` row to `approved` — the
-standing `app_rules` row (and thus `EnforcementDecider`'s decision) is untouched, so the
-child device doesn't actually unblock the app or extend its limit. Closing that gap means
-either (a) a short-lived override table/column the device's `/device/config` response
-includes and `EnforcementDecider` consults alongside the standing rule, or (b) resolving a
-request just calls the existing rule-upsert path with a temporarily bumped limit and some
-expiry mechanism to revert it. Neither was picked yet — worth deciding before building it,
-since it changes `EnforcementDecider`'s signature either way.
+**Deliberately not built:** the override window is a flat 24h from approval, not "the rest
+of the device's local day" — the backend has no reliable signal for the device's timezone
+at resolve time (`parents.timezone` is unused this slice). A real day-boundary override
+would need the device to report its timezone (e.g. on pairing or heartbeat) before the
+backend could compute a correct local-midnight expiry. Also not built: any UI telling the
+child whether their request was approved/denied — the app just quietly becomes usable
+again next sync; there's no push/notification path yet (see the separate "Notifications"
+item below).
 
 ### Notifications
 A `notifications` table (`id`, `parent_id`, `type`, `payload jsonb`, `read_at`,

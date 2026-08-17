@@ -103,10 +103,11 @@ class MonitorForegroundService : Service() {
         accrueTimeSinceLastTick(foregroundPackage)
 
         val cachedRules = ruleRepository.getCachedRules()
+        val activeOverrides = ruleRepository.getCachedOverrides()
         val usageDate = usageRepository.todayDateString()
         val todayUsage = usageRepository.getTodayUsageMinutes(usageDate)
 
-        when (val result = enforcementDecider.decide(cachedRules, todayUsage, foregroundPackage)) {
+        when (val result = enforcementDecider.decide(cachedRules, todayUsage, foregroundPackage, activeOverrides)) {
             is EnforcementResult.Blocked -> launchRestriction(result)
             is EnforcementResult.LimitExceeded -> launchRestriction(result)
             EnforcementResult.Allowed -> Unit

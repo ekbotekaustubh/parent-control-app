@@ -17,8 +17,8 @@ requires Docker) inside `backend/`.
   twice produces the same stored value as applying it once).
 - `AccessRequestService` — create requires an existing app-catalog entry, resolve is
   ownership-checked and atomic (double-resolve throws `Conflict`, not a silent second
-  write), and approve without an explicit `resolvedMinutes` falls back to the requested
-  amount.
+  write), approve without an explicit `resolvedMinutes` falls back to the requested
+  amount, approving creates an active `access_overrides` row and denying does not.
 
 **Integration tests** (`testApplication { }` + **Testcontainers PostgreSQL** — not H2,
 because the schema relies on real `gen_random_uuid()`, `jsonb`, and `ON CONFLICT`
@@ -33,8 +33,9 @@ contract is validated in isolation first.
 
 ## Partially automatable (Android, single emulator, no pairing partner needed)
 
-- Room DAO instrumented tests (in-memory Room) for the rule cache, usage ledger, and sync
-  queue upsert logic.
+- Room DAO instrumented tests (in-memory Room) for the rule cache, usage ledger, sync
+  queue, and override cache (`CachedOverrideDaoTest` — including expiry filtering)
+  upsert logic.
 - Pure-JVM ViewModel tests (`kotlinx-coroutines-test`, fake repositories) for both apps,
   including `RestrictionViewModel` (child-app, request-more-time flow) and
   `AccessRequestsViewModel` (parent-app, the approve/deny inbox).

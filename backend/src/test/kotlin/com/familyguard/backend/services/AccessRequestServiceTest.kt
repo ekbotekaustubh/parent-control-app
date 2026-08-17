@@ -13,6 +13,7 @@ import com.familyguard.shared.enums.RuleType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -82,6 +83,28 @@ class AccessRequestServiceTest {
         val resolved = accessRequestService.resolve(parentId, UUID.fromString(created.id), ResolveAccessRequestRequest(approve = true))
 
         assertEquals(25, resolved.resolvedMinutes)
+    }
+
+    @Test
+    fun `approving a request creates an active override the device can see`() {
+        val (parentId, childId, packageName) = newParentChildAndRuledApp()
+        val created = accessRequestService.createRequest(childId, CreateAccessRequestRequest(packageName, requestedMinutes = 15))
+
+        accessRequestService.resolve(parentId, UUID.fromString(created.id), ResolveAccessRequestRequest(approve = true, resolvedMinutes = 12))
+
+        val overrides = accessRequestService.activeOverridesFor(childId)
+        val override = overrides.singleOrNull { it.packageName == packageName }
+        assertEquals(12, override?.extraMinutes)
+    }
+
+    @Test
+    fun `denying a request does not create an override`() {
+        val (parentId, childId, packageName) = newParentChildAndRuledApp()
+        val created = accessRequestService.createRequest(childId, CreateAccessRequestRequest(packageName, requestedMinutes = 15))
+
+        accessRequestService.resolve(parentId, UUID.fromString(created.id), ResolveAccessRequestRequest(approve = false))
+
+        assertTrue(accessRequestService.activeOverridesFor(childId).none { it.packageName == packageName })
     }
 
     @Test

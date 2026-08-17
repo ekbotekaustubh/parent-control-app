@@ -2,6 +2,7 @@ package com.familyguard.backend.routes
 
 import com.familyguard.backend.auth.requireDeviceContext
 import com.familyguard.backend.plugins.AUTH_DEVICE
+import com.familyguard.backend.services.AccessRequestService
 import com.familyguard.backend.services.ChildService
 import com.familyguard.backend.services.RuleService
 import com.familyguard.backend.services.UsageService
@@ -22,16 +23,23 @@ import java.time.format.DateTimeFormatter
  * (requireDeviceContext()), never from any client-supplied body/path value - there is none
  * to take them from here, which is itself the anti-IDOR guarantee for this group of routes.
  */
-fun Route.deviceFacingRoutes(usageService: UsageService, ruleService: RuleService, childService: ChildService) {
+fun Route.deviceFacingRoutes(
+    usageService: UsageService,
+    ruleService: RuleService,
+    childService: ChildService,
+    accessRequestService: AccessRequestService,
+) {
     authenticate(AUTH_DEVICE) {
         get(ApiPaths.DEVICE_CONFIG) {
             val ctx = call.requireDeviceContext()
             val rules = ruleService.listRules(ctx.childId)
+            val overrides = accessRequestService.activeOverridesFor(ctx.childId)
             val configVersion = childService.getConfigVersion(ctx.childId)
             call.respond(
                 DeviceConfigResponse(
                     childId = ctx.childId.toString(),
                     rules = rules,
+                    overrides = overrides,
                     configVersion = configVersion,
                     syncIntervalSeconds = 900L,
                     serverTimeUtc = OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
