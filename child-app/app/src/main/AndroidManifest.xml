@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      PACKAGE_USAGE_STATS is a "special access" permission — it is never granted through
+      a runtime dialog. The user must flip it on explicitly in
+      Settings.ACTION_USAGE_ACCESS_SETTINGS (see ui/permission/UsageAccessPermissionScreen.kt).
+      It is the minimum permission that lets MonitorForegroundService read which app is
+      currently in the foreground via UsageStatsManager, which is the whole basis of this
+      app's enforcement mechanism (per docs/roadmap.md, AccessibilityService/VPN/Device-Admin
+      are deliberately NOT used as more invasive alternatives).
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!--
+      POST_NOTIFICATIONS (Android 13+ runtime permission) is required only to show the
+      mandatory ongoing "monitoring is active" foreground-service notification — Android
+      requires foreground services to be visibly disclosed to the user, which is also the
+      right thing to do for a non-stealth parental-control app.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      FOREGROUND_SERVICE is required to run MonitorForegroundService, which must keep
+      polling UsageStatsManager and accruing the usage ledger even while this app is not
+      in the foreground itself.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!--
+      FOREGROUND_SERVICE_SPECIAL_USE: Android 14 requires every foreground service to
+      declare a type from the fixed platform list (camera, location, dataSync, mediaPlayback,
+      etc.) or fall back to "special use" with a declared reason. This service's job —
+      continuously reading foreground-app usage stats and applying local parental-control
+      rules — does not fit any of the specific typed categories (it is not a one-shot data
+      transfer, so "dataSync" would be a mischaracterization); "special use" with an explicit
+      FOREGROUND_SERVICE_TYPE_SPECIAL_USE + PROPERTY_SPECIAL_USE_FGS_SUBTYPE declaration
+      (below, on the service) is the honest fit and is the mechanism Google's own policy
+      guidance names for parental-control monitoring services.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!--
+      RECEIVE_BOOT_COMPLETED lets BootCompletedReceiver restart MonitorForegroundService
+      and re-enqueue the WorkManager sync jobs after a device reboot — without it,
+      enforcement would silently stop until the child manually reopened the app.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- INTERNET is required for all backend calls (pairing, config sync, usage sync). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      ACCESS_NETWORK_STATE lets WorkManager's NetworkType.CONNECTED constraint (used by
+      RuleSyncWorker/UsageSyncWorker) actually evaluate connectivity instead of always
+      attempting and failing offline.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- CAMERA is used solely for the one-time QR pairing scan; never used afterward. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <application
+        android:name=".ChildApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.FamilyGuard.Child">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.FamilyGuard.Child">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          RestrictionActivity is launched with FLAG_ACTIVITY_NEW_TASK from the foreground
+          service (see service/MonitorForegroundService.kt) to cover a blocked app. It is
+          not exported: nothing outside this app should be able to launch it directly.
+        -->
+        <activity
+            android:name=".ui.restriction.RestrictionActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.FamilyGuard.Child" />
+
+        <service
+            android:name=".service.MonitorForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Parental control app usage monitoring and enforcement" />
+        </service>
+
+        <receiver
+            android:name=".receiver.BootCompletedReceiver"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          WorkManager is initialized manually with a Hilt-aware WorkerFactory
+          (see ChildApp.kt implementing androidx.work.Configuration.Provider) so that
+          RuleSyncWorker/UsageSyncWorker can receive constructor-injected repositories.
+          The default androidx.startup-based auto-initializer is removed here to avoid a
+          conflicting, non-Hilt-aware WorkManager instance being created first.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+    </application>
+
+</manifest>

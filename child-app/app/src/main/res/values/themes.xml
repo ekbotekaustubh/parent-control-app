@@ -1,0 +1,8 @@
+<resources>
+    <!-- Minimal platform splash/launch theme; actual UI theming is done in Compose
+         (ui/theme/Theme.kt). Warm palette, not an alarming "monitoring" red/black look. -->
+    <style name="Theme.FamilyGuard.Child" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#FFEDE0</item>
+        <item name="android:windowBackground">#FFFBF7</item>
+    </style>
+</resources>

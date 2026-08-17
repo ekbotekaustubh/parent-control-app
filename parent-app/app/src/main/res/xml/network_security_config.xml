@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 9+ (API 28+) blocks cleartext HTTP by default. This app's production backend
+     is expected to be HTTPS-only; the cleartext exception below is scoped ONLY to the
+     standard Android-emulator-to-host loopback alias used during local development per
+     docs/architecture.md's setup instructions (http://10.0.2.2:8080). Remove this override
+     entirely once a real HTTPS backend host is configured in local.properties. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

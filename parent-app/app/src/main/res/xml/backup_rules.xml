@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-API-31 backup rules (android:fullBackupContent). Excludes the EncryptedSharedPreferences
+     file backing data/local/TokenStore.kt: tokens must never leave the device via cloud backup. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="parent_secure_prefs.xml" />
+</full-backup-content>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Exclude the encrypted token store and Room databases from Auto Backup. Tokens are
+  device-specific credentials tied to this pairing (see docs/pairing-security.md) and
+  must never be restored onto a different physical device via cloud backup; the local
+  rule/usage cache is meaningless without a live pairing anyway.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="child_secure_prefs.xml" />
+    <exclude domain="database" path="child_database" />
+</full-backup-content>

@@ -1,0 +1,48 @@
+<resources>
+    <string name="app_name">Family Guard</string>
+
+    <!-- Foreground service notification -->
+    <string name="monitor_notification_channel_name">Family Guard monitoring</string>
+    <string name="monitor_notification_title">Family Guard is active</string>
+    <string name="monitor_notification_active">Keeping your app rules up to date</string>
+    <string name="monitor_notification_permission_lost">Usage access was turned off — tap to fix</string>
+
+    <!-- Pairing -->
+    <string name="pairing_title">Let\'s get set up</string>
+    <string name="pairing_subtitle">Ask your parent to show you the pairing code on their phone.</string>
+    <string name="pairing_scan_button">Scan QR code</string>
+    <string name="pairing_manual_label">Or type the 8-character code</string>
+    <string name="pairing_manual_hint">e.g. AB3D9K2M</string>
+    <string name="pairing_manual_submit">Continue</string>
+    <string name="pairing_error_invalid_code">That code doesn\'t look right — check and try again.</string>
+    <string name="pairing_error_generic">Something went wrong. Please try again.</string>
+    <string name="pairing_camera_permission_rationale">Family Guard needs the camera to scan the QR code shown on your parent\'s phone. It is not used for anything else.</string>
+
+    <!-- Waiting for approval -->
+    <string name="waiting_title">Waiting for approval</string>
+    <string name="waiting_subtitle">Ask your parent to approve this device on their phone.</string>
+
+    <!-- Usage access permission -->
+    <string name="usage_access_title">One more step</string>
+    <string name="usage_access_body">Family Guard needs Usage Access to know which app is open, so it can apply your family\'s app rules. This does not read what\'s inside your apps.</string>
+    <string name="usage_access_open_settings">Open Settings</string>
+    <string name="usage_access_granted">Thanks! Usage access is on.</string>
+
+    <!-- Home -->
+    <string name="home_title">You\'re all set</string>
+    <string name="home_monitoring_on">Monitoring is active</string>
+    <string name="home_monitoring_off">Monitoring needs attention</string>
+    <string name="home_last_sync">Last synced: %1$s</string>
+    <string name="home_last_sync_never">Not synced yet</string>
+
+    <!-- Restriction screen -->
+    <string name="restriction_title">This app is taking a break</string>
+    <string name="restriction_blocked_message">This app isn\'t available right now.</string>
+    <string name="restriction_limit_message">You\'ve reached today\'s time limit for this app.</string>
+    <string name="restriction_time_remaining">Available again tomorrow.</string>
+    <string name="restriction_go_home">Go to Home Screen</string>
+    <string name="restriction_request_more_time">Ask for %1$d more minutes</string>
+    <string name="restriction_request_submitting">Sending your request…</string>
+    <string name="restriction_request_sent">Request sent. A parent needs to approve it.</string>
+    <string name="restriction_request_failed">Couldn\'t send that request. Check your connection and try again.</string>
+</resources>

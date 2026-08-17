@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple shield glyph placeholder — replace with real branding art before shipping. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#F2994A"
+        android:pathData="M54,20 L80,32 V56 C80,74 68,86 54,90 C40,86 28,74 28,56 V32 Z" />
+    <path
+        android:fillColor="#FFF8F0"
+        android:pathData="M47,55 L52,62 L65,44 L69,48 L52,71 L43,59 Z" />
+</vector>

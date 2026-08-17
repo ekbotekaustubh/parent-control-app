@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 31+ backup/transfer rules (android:dataExtractionRules). Same exclusion as
+     backup_rules.xml for pre-31 devices: never let auth tokens leave the device. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="parent_secure_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="parent_secure_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>
