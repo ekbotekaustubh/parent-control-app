@@ -3,18 +3,24 @@ package com.familyguard.parent.data.remote
 import com.familyguard.shared.dto.AccessRequestResponse
 import com.familyguard.shared.dto.AppRuleResponse
 import com.familyguard.shared.dto.AuthTokensResponse
+import com.familyguard.shared.dto.CategoryRuleResponse
 import com.familyguard.shared.dto.ChildResponse
 import com.familyguard.shared.dto.CreateChildRequest
 import com.familyguard.shared.dto.DashboardResponse
 import com.familyguard.shared.dto.DeviceResponse
+import com.familyguard.shared.dto.InsightsResponse
 import com.familyguard.shared.dto.LoginRequest
 import com.familyguard.shared.dto.LogoutRequest
 import com.familyguard.shared.dto.PairingCodeResponse
 import com.familyguard.shared.dto.RefreshRequest
+import com.familyguard.shared.dto.ReportResponse
 import com.familyguard.shared.dto.ResolveAccessRequestRequest
+import com.familyguard.shared.dto.ScheduleResponse
 import com.familyguard.shared.dto.SignupRequest
 import com.familyguard.shared.dto.SignupResponse
+import com.familyguard.shared.dto.UpsertCategoryRuleRequest
 import com.familyguard.shared.dto.UpsertRuleRequest
+import com.familyguard.shared.dto.UpsertScheduleRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -128,4 +134,53 @@ interface ParentApiService {
         @Path("requestId") requestId: String,
         @Body request: ResolveAccessRequestRequest,
     ): AccessRequestResponse
+
+    // ---- Category rules ----
+
+    // ApiPaths.CHILD_CATEGORY_RULE
+    @PUT("children/{childId}/categories/{category}/rule")
+    suspend fun upsertCategoryRule(
+        @Path("childId") childId: String,
+        @Path("category") category: String,
+        @Body request: UpsertCategoryRuleRequest,
+    ): CategoryRuleResponse
+
+    // ApiPaths.CHILD_CATEGORY_RULES
+    @GET("children/{childId}/category-rules")
+    suspend fun getCategoryRules(@Path("childId") childId: String): List<CategoryRuleResponse>
+
+    // ApiPaths.CHILD_CATEGORY_RULE
+    @DELETE("children/{childId}/categories/{category}/rule")
+    suspend fun deleteCategoryRule(
+        @Path("childId") childId: String,
+        @Path("category") category: String,
+    ): Response<Unit>
+
+    // ---- Schedules ----
+
+    // ApiPaths.CHILD_SCHEDULES
+    @POST("children/{childId}/schedules")
+    suspend fun createSchedule(@Path("childId") childId: String, @Body request: UpsertScheduleRequest): ScheduleResponse
+
+    // ApiPaths.CHILD_SCHEDULES
+    @GET("children/{childId}/schedules")
+    suspend fun getSchedules(@Path("childId") childId: String): List<ScheduleResponse>
+
+    // ApiPaths.CHILD_SCHEDULE_BY_ID
+    @DELETE("children/{childId}/schedules/{scheduleId}")
+    suspend fun deleteSchedule(@Path("childId") childId: String, @Path("scheduleId") scheduleId: String): Response<Unit>
+
+    // ---- Reports & insights ----
+
+    // ApiPaths.CHILD_REPORT
+    @GET("children/{childId}/report")
+    suspend fun getReport(
+        @Path("childId") childId: String,
+        @Query("range") range: String,
+        @Query("anchor") anchor: String? = null,
+    ): ReportResponse
+
+    // ApiPaths.CHILD_INSIGHTS
+    @GET("children/{childId}/insights")
+    suspend fun getInsights(@Path("childId") childId: String): InsightsResponse
 }

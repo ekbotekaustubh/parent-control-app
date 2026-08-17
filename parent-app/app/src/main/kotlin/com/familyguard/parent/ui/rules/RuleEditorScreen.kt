@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.familyguard.parent.ui.common.ErrorState
 import com.familyguard.parent.ui.common.LoadingState
+import com.familyguard.shared.dto.ScheduleResponse
 import com.familyguard.shared.enums.RuleType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +47,7 @@ fun RuleEditorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val form by viewModel.form.collectAsState()
+    val availableSchedules by viewModel.availableSchedules.collectAsState()
 
     LaunchedEffect(childId) { viewModel.load(childId) }
     LaunchedEffect(uiState) {
@@ -72,10 +74,13 @@ fun RuleEditorScreen(
             else -> RuleEditorForm(
                 modifier = Modifier.padding(padding),
                 form = form,
+                availableSchedules = availableSchedules,
                 isSaving = state is RuleEditorUiState.Saving,
                 onSelectApp = viewModel::selectApp,
                 onRuleTypeChange = viewModel::setRuleType,
                 onLimitChange = viewModel::setDailyLimitMinutesText,
+                onCategoryChange = viewModel::setCategory,
+                onScheduleChange = viewModel::setSelectedScheduleId,
                 onSave = { viewModel.save(childId) },
             )
         }
@@ -87,10 +92,13 @@ fun RuleEditorScreen(
 private fun RuleEditorForm(
     modifier: Modifier,
     form: RuleEditorFormState,
+    availableSchedules: List<ScheduleResponse>,
     isSaving: Boolean,
     onSelectApp: (CommonApp) -> Unit,
     onRuleTypeChange: (RuleType) -> Unit,
     onLimitChange: (String) -> Unit,
+    onCategoryChange: (String) -> Unit,
+    onScheduleChange: (String?) -> Unit,
     onSave: () -> Unit,
 ) {
     Column(
@@ -137,6 +145,39 @@ private fun RuleEditorForm(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+
+        OutlinedTextField(
+            value = form.category,
+            onValueChange = onCategoryChange,
+            label = { Text("Category (optional, e.g. social)") },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp),
+        )
+
+        if (availableSchedules.isNotEmpty()) {
+            Text("Only during a schedule? (optional)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 20.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = form.selectedScheduleId == null,
+                    onClick = { onScheduleChange(null) },
+                    label = { Text("Always") },
+                )
+                availableSchedules.forEach { schedule ->
+                    FilterChip(
+                        selected = form.selectedScheduleId == schedule.id,
+                        onClick = { onScheduleChange(schedule.id) },
+                        label = { Text(schedule.name) },
+                    )
+                }
+            }
         }
 
         Button(

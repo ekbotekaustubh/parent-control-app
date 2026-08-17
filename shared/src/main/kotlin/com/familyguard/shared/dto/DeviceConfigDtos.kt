@@ -8,6 +8,10 @@ data class DeviceConfigResponse(
     val rules: List<AppRuleResponse>,
     /** Active (not-yet-expired) grants from approved access requests — see `AccessOverrideResponse`. */
     val overrides: List<AccessOverrideResponse>,
+    /** This child's category-level fallback limits — see `docs/roadmap.md`'s "Category-level rules". */
+    val categoryRules: List<CategoryRuleResponse>,
+    /** This child's schedules, unfiltered — the device evaluates "is this one active right now" itself, using its own local clock (see `ScheduleResponse`'s KDoc). */
+    val schedules: List<ScheduleResponse>,
     val configVersion: Long,
     val syncIntervalSeconds: Long,
     val serverTimeUtc: String,

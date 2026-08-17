@@ -2,8 +2,10 @@ package com.familyguard.child.di
 
 import android.content.Context
 import androidx.room.Room
+import com.familyguard.child.data.local.db.CachedCategoryLimitDao
 import com.familyguard.child.data.local.db.CachedOverrideDao
 import com.familyguard.child.data.local.db.CachedRuleDao
+import com.familyguard.child.data.local.db.CachedScheduleDao
 import com.familyguard.child.data.local.db.ChildDatabase
 import com.familyguard.child.data.local.db.SyncQueueDao
 import com.familyguard.child.data.local.db.UsageLedgerDao
@@ -22,8 +24,8 @@ object DatabaseModule {
     @Singleton
     fun provideChildDatabase(@ApplicationContext context: Context): ChildDatabase =
         Room.databaseBuilder(context, ChildDatabase::class.java, ChildDatabase.DATABASE_NAME)
-            // See ChildDatabase's KDoc on the version 2 bump — no real device has this
-            // database pre-version-2 yet, so destructive fallback is fine for now.
+            // See ChildDatabase's KDoc on the version 2/3 bumps — no real device has this
+            // database pre-version-3 yet, so destructive fallback is fine for now.
             .fallbackToDestructiveMigration()
             .build()
 
@@ -38,4 +40,10 @@ object DatabaseModule {
 
     @Provides
     fun provideCachedOverrideDao(db: ChildDatabase): CachedOverrideDao = db.cachedOverrideDao()
+
+    @Provides
+    fun provideCachedScheduleDao(db: ChildDatabase): CachedScheduleDao = db.cachedScheduleDao()
+
+    @Provides
+    fun provideCachedCategoryLimitDao(db: ChildDatabase): CachedCategoryLimitDao = db.cachedCategoryLimitDao()
 }

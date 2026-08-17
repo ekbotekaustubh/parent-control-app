@@ -24,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 import javax.inject.Inject
 
 /**
@@ -104,10 +105,21 @@ class MonitorForegroundService : Service() {
 
         val cachedRules = ruleRepository.getCachedRules()
         val activeOverrides = ruleRepository.getCachedOverrides()
+        val categoryLimits = ruleRepository.getCachedCategoryLimits()
+        val schedules = ruleRepository.getCachedSchedules()
         val usageDate = usageRepository.todayDateString()
         val todayUsage = usageRepository.getTodayUsageMinutes(usageDate)
 
-        when (val result = enforcementDecider.decide(cachedRules, todayUsage, foregroundPackage, activeOverrides)) {
+        val result = enforcementDecider.decide(
+            cachedRules = cachedRules,
+            todayUsageMinutes = todayUsage,
+            foregroundPackage = foregroundPackage,
+            activeOverrides = activeOverrides,
+            categoryLimits = categoryLimits,
+            schedules = schedules,
+            now = LocalDateTime.now(),
+        )
+        when (result) {
             is EnforcementResult.Blocked -> launchRestriction(result)
             is EnforcementResult.LimitExceeded -> launchRestriction(result)
             EnforcementResult.Allowed -> Unit

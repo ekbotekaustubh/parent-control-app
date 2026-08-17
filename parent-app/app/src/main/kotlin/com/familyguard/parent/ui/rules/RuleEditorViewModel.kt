@@ -3,7 +3,9 @@ package com.familyguard.parent.ui.rules
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.familyguard.parent.data.repository.RuleRepository
+import com.familyguard.parent.data.repository.ScheduleRepository
 import com.familyguard.shared.dto.AppRuleResponse
+import com.familyguard.shared.dto.ScheduleResponse
 import com.familyguard.shared.enums.RuleType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -17,6 +19,10 @@ data class RuleEditorFormState(
     val selectedApp: CommonApp = CommonApp.entries.first(),
     val ruleType: RuleType = RuleType.BLOCK,
     val dailyLimitMinutesText: String = "",
+    /** Optional - see docs/roadmap.md's "Category-level rules". Blank means "leave untagged/unchanged" (UpsertRuleRequest.category is sticky). */
+    val category: String = "",
+    /** Optional - ties this rule to one of [RuleEditorViewModel.availableSchedules]' windows (docs/roadmap.md's "Schedules"). Null means always-applies. */
+    val selectedScheduleId: String? = null,
 )
 
 sealed interface RuleEditorUiState {
@@ -30,6 +36,7 @@ sealed interface RuleEditorUiState {
 @HiltViewModel
 class RuleEditorViewModel @Inject constructor(
     private val ruleRepository: RuleRepository,
+    private val scheduleRepository: ScheduleRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<RuleEditorUiState>(RuleEditorUiState.Loading)
@@ -38,12 +45,19 @@ class RuleEditorViewModel @Inject constructor(
     private val _form = MutableStateFlow(RuleEditorFormState())
     val form: StateFlow<RuleEditorFormState> = _form.asStateFlow()
 
+    private val _availableSchedules = MutableStateFlow<List<ScheduleResponse>>(emptyList())
+    val availableSchedules: StateFlow<List<ScheduleResponse>> = _availableSchedules.asStateFlow()
+
     private val _existingRules = MutableStateFlow<Map<String, AppRuleResponse>>(emptyMap())
 
     fun load(childId: String) {
         viewModelScope.launch {
             _uiState.value = RuleEditorUiState.Loading
             val result = ruleRepository.getRules(childId)
+            // Schedules are used to populate the optional "tie to a schedule" picker; a
+            // failure here isn't fatal to the rest of the form, so it's not folded into
+            // the Error state - it just leaves the picker empty.
+            _availableSchedules.value = scheduleRepository.getSchedules(childId).getOrDefault(emptyList())
             result.fold(
                 onSuccess = { rules ->
                     _existingRules.value = rules.associateBy { it.packageName }
@@ -68,6 +82,8 @@ class RuleEditorViewModel @Inject constructor(
             it.copy(
                 ruleType = existing?.ruleType ?: RuleType.BLOCK,
                 dailyLimitMinutesText = existing?.dailyLimitMinutes?.toString().orEmpty(),
+                category = existing?.category.orEmpty(),
+                selectedScheduleId = existing?.scheduleId,
             )
         }
     }
@@ -76,6 +92,10 @@ class RuleEditorViewModel @Inject constructor(
 
     fun setDailyLimitMinutesText(value: String) =
         _form.update { it.copy(dailyLimitMinutesText = value.filter(Char::isDigit).take(4)) }
+
+    fun setCategory(value: String) = _form.update { it.copy(category = value) }
+
+    fun setSelectedScheduleId(scheduleId: String?) = _form.update { it.copy(selectedScheduleId = scheduleId) }
 
     fun save(childId: String) {
         val current = _form.value
@@ -92,6 +112,8 @@ class RuleEditorViewModel @Inject constructor(
                 packageName = current.selectedApp.packageName,
                 ruleType = current.ruleType,
                 dailyLimitMinutes = limitMinutes,
+                category = current.category.trim().ifBlank { null },
+                scheduleId = current.selectedScheduleId,
             )
             _uiState.value = result.fold(
                 onSuccess = { RuleEditorUiState.Saved },

@@ -4,6 +4,7 @@ import com.familyguard.backend.db.tables.AppRulesTable
 import com.familyguard.backend.db.tables.AppsTable
 import com.familyguard.backend.db.tables.ChildrenTable
 import com.familyguard.backend.db.tables.RuleTypeValues
+import com.familyguard.backend.db.tables.SchedulesTable
 import com.familyguard.backend.plugins.ApiException
 import com.familyguard.shared.dto.AppRuleResponse
 import com.familyguard.shared.dto.UpsertRuleRequest
@@ -26,6 +27,10 @@ class RuleService {
         transaction {
             requireOwnedChild(parentId, childId)
             val appId = findOrCreateApp(packageName)
+            if (request.category != null) {
+                AppsTable.update({ AppsTable.id eq appId }) { it[category] = request.category }
+            }
+            val scheduleId = request.scheduleId?.let { requireOwnedSchedule(childId, UUID.fromString(it)) }
 
             val existing = AppRulesTable.selectAll()
                 .where { (AppRulesTable.childId eq childId) and (AppRulesTable.appId eq appId) }
@@ -40,12 +45,14 @@ class RuleService {
                     it[ruleType] = ruleTypeValue
                     it[dailyLimitMinutes] = request.dailyLimitMinutes
                     it[isActive] = true
+                    it[AppRulesTable.scheduleId] = scheduleId
                 }
             } else {
                 AppRulesTable.update({ AppRulesTable.id eq existing[AppRulesTable.id] }) {
                     it[ruleType] = ruleTypeValue
                     it[dailyLimitMinutes] = request.dailyLimitMinutes
                     it[isActive] = true
+                    it[AppRulesTable.scheduleId] = scheduleId
                 }
             }
 
@@ -96,6 +103,15 @@ class RuleService {
         }
     }
 
+    /** Guards against tying a rule to another child's schedule (anti-IDOR, same shape as requireOwnedChild). */
+    private fun requireOwnedSchedule(childId: UUID, scheduleId: UUID): UUID {
+        val owns = SchedulesTable.selectAll()
+            .where { (SchedulesTable.id eq scheduleId) and (SchedulesTable.childId eq childId) }
+            .count() > 0
+        if (!owns) throw ApiException.NotFound("SCHEDULE_NOT_FOUND", "No schedule with that id.")
+        return scheduleId
+    }
+
     private fun bumpConfigVersion(childId: UUID) {
         ChildrenTable.update({ ChildrenTable.id eq childId }) {
             it.update(ChildrenTable.configVersion, ChildrenTable.configVersion + 1L)
@@ -123,5 +139,7 @@ class RuleService {
         ruleType = if (this[AppRulesTable.ruleType] == RuleTypeValues.ALLOW) RuleType.ALLOW else RuleType.BLOCK,
         dailyLimitMinutes = this[AppRulesTable.dailyLimitMinutes],
         isActive = this[AppRulesTable.isActive],
+        category = this[AppsTable.category],
+        scheduleId = this[AppRulesTable.scheduleId]?.toString(),
     )
 }

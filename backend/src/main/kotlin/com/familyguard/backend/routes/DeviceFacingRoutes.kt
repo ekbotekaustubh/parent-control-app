@@ -3,8 +3,10 @@ package com.familyguard.backend.routes
 import com.familyguard.backend.auth.requireDeviceContext
 import com.familyguard.backend.plugins.AUTH_DEVICE
 import com.familyguard.backend.services.AccessRequestService
+import com.familyguard.backend.services.CategoryRuleService
 import com.familyguard.backend.services.ChildService
 import com.familyguard.backend.services.RuleService
+import com.familyguard.backend.services.ScheduleService
 import com.familyguard.backend.services.UsageService
 import com.familyguard.shared.ApiPaths
 import com.familyguard.shared.dto.DeviceConfigResponse
@@ -28,18 +30,24 @@ fun Route.deviceFacingRoutes(
     ruleService: RuleService,
     childService: ChildService,
     accessRequestService: AccessRequestService,
+    categoryRuleService: CategoryRuleService,
+    scheduleService: ScheduleService,
 ) {
     authenticate(AUTH_DEVICE) {
         get(ApiPaths.DEVICE_CONFIG) {
             val ctx = call.requireDeviceContext()
             val rules = ruleService.listRules(ctx.childId)
             val overrides = accessRequestService.activeOverridesFor(ctx.childId)
+            val categoryRules = categoryRuleService.listCategoryRules(ctx.childId)
+            val schedules = scheduleService.listSchedules(ctx.childId)
             val configVersion = childService.getConfigVersion(ctx.childId)
             call.respond(
                 DeviceConfigResponse(
                     childId = ctx.childId.toString(),
                     rules = rules,
                     overrides = overrides,
+                    categoryRules = categoryRules,
+                    schedules = schedules,
                     configVersion = configVersion,
                     syncIntervalSeconds = 900L,
                     serverTimeUtc = OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),

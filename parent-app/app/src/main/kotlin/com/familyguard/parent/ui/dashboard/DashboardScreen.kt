@@ -49,6 +49,8 @@ fun DashboardScreen(
     childId: String,
     onPairDevice: () -> Unit,
     onEditRules: () -> Unit,
+    onOpenAdvancedRules: () -> Unit,
+    onOpenReports: () -> Unit,
     onBackToChildList: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
@@ -99,6 +101,8 @@ fun DashboardScreen(
                 is DashboardUiState.Content -> DashboardContent(
                     state = state,
                     onEditRules = onEditRules,
+                    onOpenAdvancedRules = onOpenAdvancedRules,
+                    onOpenReports = onOpenReports,
                 )
             }
         }
@@ -123,6 +127,8 @@ fun DashboardScreen(
 private fun DashboardContent(
     state: DashboardUiState.Content,
     onEditRules: () -> Unit,
+    onOpenAdvancedRules: () -> Unit,
+    onOpenReports: () -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -133,20 +139,15 @@ private fun DashboardContent(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Today's usage", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "Edit rules",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .clickable(onClick = onEditRules)
-                        .padding(4.dp),
-                )
+                DashboardLink("Edit rules", onEditRules)
+                DashboardLink("Schedules", onOpenAdvancedRules)
+                DashboardLink("Reports", onOpenReports)
             }
         }
+        item { Text("Today's usage", style = MaterialTheme.typography.titleMedium) }
         if (state.usageToday.isEmpty()) {
             item {
                 EmptyState(
@@ -160,6 +161,18 @@ private fun DashboardContent(
             items(state.usageToday, key = { it.packageName }) { usage -> UsageCard(usage) }
         }
     }
+}
+
+@Composable
+private fun DashboardLink(label: String, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(4.dp),
+    )
 }
 
 @Composable

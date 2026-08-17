@@ -6,8 +6,12 @@ import com.familyguard.backend.plugins.ApiException
 import com.familyguard.shared.dto.CreateChildRequest
 import com.familyguard.shared.dto.SignupRequest
 import com.familyguard.shared.dto.UpsertRuleRequest
+import com.familyguard.shared.dto.UpsertScheduleRequest
 import com.familyguard.shared.enums.RuleType
+import com.familyguard.shared.enums.ScheduleMode
+import com.familyguard.shared.enums.Weekday
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -20,6 +24,7 @@ class RuleServiceTest {
     private val authService = AuthService(jwtConfig)
     private val childService = ChildService()
     private val ruleService = RuleService()
+    private val scheduleService = ScheduleService()
 
     private fun newParentAndChild(): Pair<UUID, UUID> {
         val signup = authService.signup(SignupRequest("rule-test-${UUID.randomUUID()}@example.com", "password123", "Parent"))
@@ -87,6 +92,57 @@ class RuleServiceTest {
     fun `deleting a rule for a package that was never ruled is a no-op, not an error`() {
         val (parentId, childId) = newParentAndChild()
         ruleService.deleteRule(parentId, childId, "com.example.never-existed")
+    }
+
+    @Test
+    fun `setting a category on upsert tags the app and is reflected in the response`() {
+        val (parentId, childId) = newParentAndChild()
+
+        val rule = ruleService.upsertRule(parentId, childId, "com.example.social", UpsertRuleRequest(RuleType.ALLOW, category = "social"))
+
+        assertEquals("social", rule.category)
+        // Re-fetching without a category doesn't clear it (UpsertRuleRequest's category is sticky - see its KDoc).
+        val updated = ruleService.upsertRule(parentId, childId, "com.example.social", UpsertRuleRequest(RuleType.ALLOW, dailyLimitMinutes = 10))
+        assertEquals("social", updated.category)
+    }
+
+    @Test
+    fun `tying a rule to an owned schedule persists the scheduleId`() {
+        val (parentId, childId) = newParentAndChild()
+        val schedule = scheduleService.createSchedule(
+            parentId,
+            childId,
+            UpsertScheduleRequest(name = "Study", daysOfWeek = listOf(Weekday.MON), startTime = "09:00", endTime = "10:00", mode = ScheduleMode.ALLOW_ONLY),
+        )
+
+        val rule = ruleService.upsertRule(parentId, childId, "com.example.app", UpsertRuleRequest(RuleType.ALLOW, scheduleId = schedule.id))
+
+        assertEquals(schedule.id, rule.scheduleId)
+    }
+
+    @Test
+    fun `tying a rule to another child's schedule is rejected`() {
+        val (parentId, childId) = newParentAndChild()
+        val (otherParentId, otherChildId) = newParentAndChild()
+        val otherChildsSchedule = scheduleService.createSchedule(
+            otherParentId,
+            otherChildId,
+            UpsertScheduleRequest(name = "Not yours", daysOfWeek = listOf(Weekday.MON), startTime = "09:00", endTime = "10:00", mode = ScheduleMode.BLOCK),
+        )
+
+        val ex = assertThrows(ApiException.NotFound::class.java) {
+            ruleService.upsertRule(parentId, childId, "com.example.app", UpsertRuleRequest(RuleType.ALLOW, scheduleId = otherChildsSchedule.id))
+        }
+        assertEquals("SCHEDULE_NOT_FOUND", ex.code)
+    }
+
+    @Test
+    fun `omitting scheduleId on upsert leaves the rule always-applying`() {
+        val (parentId, childId) = newParentAndChild()
+
+        val rule = ruleService.upsertRule(parentId, childId, "com.example.app", UpsertRuleRequest(RuleType.BLOCK))
+
+        assertNull(rule.scheduleId)
     }
 
     @Test

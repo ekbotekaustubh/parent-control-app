@@ -7,6 +7,10 @@ import kotlinx.serialization.Serializable
 data class UpsertRuleRequest(
     val ruleType: RuleType,
     val dailyLimitMinutes: Int? = null,
+    /** Tags the app's catalog row with this category (`apps.category`) - see docs/roadmap.md's "Category-level rules". Omit to leave the app's existing category (if any) untouched. */
+    val category: String? = null,
+    /** Ties this rule to a schedule's window (docs/roadmap.md's "Schedules") - null (the default) means the rule always applies. */
+    val scheduleId: String? = null,
 )
 
 @Serializable
@@ -18,4 +22,6 @@ data class AppRuleResponse(
     val ruleType: RuleType,
     val dailyLimitMinutes: Int?,
     val isActive: Boolean,
+    val category: String?,
+    val scheduleId: String?,
 )

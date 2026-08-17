@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.familyguard.parent.ui.accessrequests.AccessRequestsScreen
+import com.familyguard.parent.ui.advancedrules.AdvancedRulesScreen
 import com.familyguard.parent.ui.auth.AuthScreen
 import com.familyguard.parent.ui.auth.AuthViewModel
 import com.familyguard.parent.ui.children.ChildListScreen
@@ -15,6 +16,7 @@ import com.familyguard.parent.ui.children.CreateChildScreen
 import com.familyguard.parent.ui.dashboard.DashboardScreen
 import com.familyguard.parent.ui.pairing.DeviceApprovalScreen
 import com.familyguard.parent.ui.pairing.PairingScreen
+import com.familyguard.parent.ui.reports.ReportsScreen
 import com.familyguard.parent.ui.rules.RuleEditorScreen
 
 /**
@@ -35,11 +37,15 @@ object ParentRoutes {
     const val DEVICE_APPROVAL = "deviceApproval/{$CHILD_ID_ARG}"
     const val RULE_EDITOR = "ruleEditor/{$CHILD_ID_ARG}"
     const val DASHBOARD = "dashboard/{$CHILD_ID_ARG}"
+    const val ADVANCED_RULES = "advancedRules/{$CHILD_ID_ARG}"
+    const val REPORTS = "reports/{$CHILD_ID_ARG}"
 
     fun pairing(childId: String) = "pairing/$childId"
     fun deviceApproval(childId: String) = "deviceApproval/$childId"
     fun ruleEditor(childId: String) = "ruleEditor/$childId"
     fun dashboard(childId: String) = "dashboard/$childId"
+    fun advancedRules(childId: String) = "advancedRules/$childId"
+    fun reports(childId: String) = "reports/$childId"
 }
 
 @Composable
@@ -147,12 +153,30 @@ fun ParentNavGraph(navController: NavHostController) {
                 childId = childId,
                 onPairDevice = { navController.navigate(ParentRoutes.pairing(childId)) },
                 onEditRules = { navController.navigate(ParentRoutes.ruleEditor(childId)) },
+                onOpenAdvancedRules = { navController.navigate(ParentRoutes.advancedRules(childId)) },
+                onOpenReports = { navController.navigate(ParentRoutes.reports(childId)) },
                 onBackToChildList = {
                     navController.navigate(ParentRoutes.CHILD_LIST) {
                         popUpTo(ParentRoutes.CHILD_LIST) { inclusive = true }
                     }
                 },
             )
+        }
+
+        composable(
+            route = ParentRoutes.ADVANCED_RULES,
+            arguments = listOf(navArgument("childId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val childId = backStackEntry.arguments?.getString("childId").orEmpty()
+            AdvancedRulesScreen(childId = childId, onBack = { navController.popBackStack() })
+        }
+
+        composable(
+            route = ParentRoutes.REPORTS,
+            arguments = listOf(navArgument("childId") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val childId = backStackEntry.arguments?.getString("childId").orEmpty()
+            ReportsScreen(childId = childId, onBack = { navController.popBackStack() })
         }
     }
 }

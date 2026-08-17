@@ -113,28 +113,80 @@ self-service path back — re-pairing is required.
 ## Rules (parent-authenticated, ownership-checked)
 
 ### `PUT /children/{childId}/apps/{packageName}/rule`
-Request: `{ "ruleType": "block" | "allow", "dailyLimitMinutes": 45 }` (upsert)
-→ `200` AppRule object. Bumps `children.config_version`.
+Request: `{ "ruleType": "block" | "allow", "dailyLimitMinutes": 45, "category": "social", "scheduleId": "..." }`
+(upsert). `category` and `scheduleId` are both optional. `category` is sticky - omit it to
+leave the app's existing category (if any) untouched; it tags `apps.category`, not the
+rule itself. `scheduleId` is full-replace like every other field here - omit it (or pass
+`null`) to make the rule always-apply; passing one ties the rule to that schedule's window
+(`404 SCHEDULE_NOT_FOUND` if it doesn't belong to this child). → `200` AppRule object.
+Bumps `children.config_version`.
 
 ### `GET /children/{childId}/rules`
 → `200 [AppRule]`. Callable by the owning parent, or by a device whose JWT `childId`
 claim matches (the child app uses this indirectly via `/device/config`, not this route
-directly, but it's available for parity).
+directly, but it's available for parity). `AppRule` shape: `{ "id", "childId",
+"packageName", "displayName", "ruleType", "dailyLimitMinutes", "isActive", "category",
+"scheduleId" }`.
 
 ### `DELETE /children/{childId}/apps/{packageName}/rule`
 → `204`. Bumps `children.config_version`.
 
 ---
 
+## Category rules (parent-authenticated, ownership-checked)
+
+See `docs/database-schema.md`'s `category_rules` table for the scope limit (only applies
+to apps that already have a standing unlimited ALLOW rule).
+
+### `PUT /children/{childId}/categories/{category}/rule`
+Request: `{ "dailyLimitMinutes": 60 }` (upsert on `(childId, category)`) → `200`
+CategoryRule object: `{ "id", "childId", "category", "dailyLimitMinutes" }`. Does **not**
+bump `children.config_version` — `GET /device/config` always includes the current
+`categoryRules` regardless.
+
+### `GET /children/{childId}/category-rules`
+Parent-only. → `200 [CategoryRule]`.
+
+### `DELETE /children/{childId}/categories/{category}/rule`
+→ `204`.
+
+---
+
+## Schedules (parent-authenticated, ownership-checked)
+
+Create/list/delete only - no update endpoint; delete and recreate to change one, same
+minimal-CRUD depth as pairing codes.
+
+### `POST /children/{childId}/schedules`
+Request: `{ "name": "Bedtime", "daysOfWeek": ["MON","TUE","WED","THU","FRI"], "startTime":
+"21:00", "endTime": "07:00", "mode": "block" | "allow_only" }` → `201` Schedule object:
+`{ "id", "childId", "name", "daysOfWeek", "startTime", "endTime", "mode", "isActive" }`.
+`400 INVALID_DAYS_OF_WEEK` if `daysOfWeek` is empty, `400 INVALID_TIME_RANGE` if
+`startTime == endTime`. `startTime > endTime` is valid and means an overnight window.
+
+### `GET /children/{childId}/schedules`
+→ `200 [Schedule]`.
+
+### `DELETE /children/{childId}/schedules/{scheduleId}`
+→ `204`. Any `app_rules` row tied to this schedule is detached (`schedule_id` set to
+`null`), not deleted.
+
+---
+
 ## Device-facing (device-authenticated; `deviceId`/`childId` always taken from the JWT)
 
 ### `GET /device/config`
-→ `200 { "childId": "...", "rules": [AppRule], "overrides": [AccessOverride], "configVersion": 7, "syncIntervalSeconds": 900, "serverTimeUtc": "..." }`
+→ `200 { "childId": "...", "rules": [AppRule], "overrides": [AccessOverride],
+"categoryRules": [CategoryRule], "schedules": [Schedule], "configVersion": 7,
+"syncIntervalSeconds": 900, "serverTimeUtc": "..." }`
 `overrides` is every currently-active (not-yet-expired) grant from an approved access
 request for this child — see the Access requests section below. `AccessOverride` shape:
-`{ "packageName", "extraMinutes", "expiresAt" }`. The child app's `EnforcementDecider`
-adds `extraMinutes` on top of the matching `AppRule`'s limit; it does not replace or
-change `rules` itself.
+`{ "packageName", "extraMinutes", "expiresAt" }`. `categoryRules` and `schedules` are sent
+**unfiltered** (every row for the child, not just "active right now") — the device
+evaluates schedule activeness itself using its own local clock; see
+`docs/database-schema.md`'s `schedules` entry. The child app's `EnforcementDecider`
+combines all of these with the matching `AppRule` at decision time; none of them replace
+or change `rules` itself.
 
 ### `POST /device/usage-sync`
 Request: `{ "events": [ { "packageName": "...", "usageDate": "2026-08-16", "durationMinutes": 32 } ] }`
@@ -199,5 +251,30 @@ backend rewriting the rule itself.
 }
 ```
 A purpose-built read model for this one screen (avoids N+1 client calls). Documented as a
-candidate to decompose into more general queries once Reports (see `roadmap.md`) needs
-broader date-range aggregation.
+candidate to decompose into more general queries once Reports needs broader date-range
+aggregation than the dedicated endpoint below.
+
+---
+
+## Reports & insights (parent-authenticated, ownership-checked)
+
+Both are pure aggregation over `usage_records` — no new tables (`docs/roadmap.md`). Ranges
+are **rolling windows ending at `anchor`** (default today), not calendar week/month
+boundaries, for the same reason as `access_overrides`: no reliable device-local-timezone
+signal server-side.
+
+### `GET /children/{childId}/report?range=daily|weekly|monthly&anchor=YYYY-MM-DD`
+`range` defaults to `weekly` if omitted; `anchor` defaults to today. `daily` = just
+`anchor`; `weekly` = the 7 days ending `anchor`; `monthly` = the 30 days ending `anchor`.
+→ `200 { "range": "weekly", "startDate": "...", "endDate": "...", "totalMinutes": 210,
+"byApp": [ { "packageName", "displayName", "totalMinutes" } ], "byDay": [ { "date",
+"totalMinutes" } ] }`. `400 INVALID_RANGE` for anything other than the three listed
+values, `400 INVALID_ANCHOR` for a malformed date.
+
+### `GET /children/{childId}/insights`
+→ `200 { "currentWeekMinutes": 100, "previousWeekMinutes": 50,
+"weekOverWeekChangePercent": 100.0, "topApps": [ { "packageName", "displayName",
+"minutes" } ], "generatedAt": "..." }`. "This week"/"last week" are rolling 7-day windows,
+not calendar weeks. `weekOverWeekChangePercent` is `null` when `previousWeekMinutes` is 0
+(no baseline to compute a percentage against). `topApps` is at most the top 3 apps by
+minutes this week.

@@ -18,4 +18,8 @@ data class CachedRuleEntity(
     /** The server's `configVersion` this row was last synced under; lets sync short-circuit when unchanged. */
     val configVersion: Long,
     val updatedAt: Long,
+    /** docs/roadmap.md's "Category-level rules" — see EnforcementRule.category's KDoc. */
+    val category: String? = null,
+    /** docs/roadmap.md's "Schedules" (per-app variant) — see EnforcementRule.scheduleId's KDoc. */
+    val scheduleId: String? = null,
 )

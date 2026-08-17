@@ -163,7 +163,49 @@ Index on `(child_id, expires_at)` for the "active overrides for this child" quer
 table is never joined into rule-editing/dashboard queries, only into the device-facing
 config response.
 
+### `category_rules`
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| child_id | uuid FK → children(id) ON DELETE CASCADE | |
+| category | text NOT NULL | free text, tagged onto `apps.category` via a rule upsert (`UpsertRuleRequest.category`) — no separate category-management endpoint |
+| daily_limit_minutes | int NOT NULL | |
+| created_at, updated_at | timestamptz | |
+
+`UNIQUE (child_id, category)` — upsert target. **Scope limit:** only applies to apps that
+already have a standing `app_rules` row of `rule_type = 'allow'` with no explicit
+`daily_limit_minutes` (i.e. unlimited) — the device only learns a package's category via
+its synced `app_rules` row (`AppRuleResponse.category`), so an app with no rule at all
+stays unrestricted regardless of category, same as today. "Most specific wins" in
+practice: an explicit per-app `daily_limit_minutes` always beats the category limit; the
+category limit is only consulted as the fallback when the per-app rule leaves it unset.
+
+### `schedules`
+| column | type | notes |
+|---|---|---|
+| id | uuid PK | |
+| child_id | uuid FK → children(id) ON DELETE CASCADE | |
+| name | text NOT NULL | |
+| days_of_week | text NOT NULL | comma-separated 3-letter codes, e.g. `MON,TUE,WED,THU,FRI` |
+| start_time, end_time | time NOT NULL | device-local wall-clock, no timezone attached (see `ScheduleResponse`'s KDoc) — `start_time > end_time` is a valid overnight window |
+| mode | text NOT NULL DEFAULT 'block' CHECK IN ('block','allow_only') | `block`: every app blocked while active. `allow_only`: every app blocked while active except ones with a standing ALLOW `app_rules` row |
+| is_active | boolean DEFAULT true | |
+| created_at, updated_at | timestamptz | |
+
+Index on `child_id`. Sent to the device unfiltered via `GET /device/config` — the device,
+not the backend, decides "is this schedule active right now", since it's the one that
+knows its own local clock (same reasoning as `access_overrides`' rolling-window choice,
+taken one step further: here the device does the whole activeness check itself instead of
+the backend approximating it).
+
+`app_rules.schedule_id` (nullable FK → `schedules(id)` ON DELETE SET NULL, added by
+`V15__add_schedule_id_to_app_rules.sql`) is a second, independent use of schedules:
+tying one specific rule to a window ("block Instagram only during school hours") rather
+than a blanket lockdown. Outside that window, a schedule-tied rule simply doesn't apply
+(no rule = allowed), same as any other unrelated package.
+
 ## Deferred tables (see `roadmap.md` for detail)
 
-`schedules`, `website_rules`, `notifications`, `reports`, `categories` are documented but
-not created in this slice's migrations.
+`website_rules`, `notifications` are documented but not created in this slice's
+migrations. Reports and smart insights are pure read-side aggregations over
+`usage_records` — no new tables at all (see `ReportService`/`InsightsService`).

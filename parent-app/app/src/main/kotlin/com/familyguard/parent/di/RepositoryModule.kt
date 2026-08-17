@@ -4,14 +4,20 @@ import com.familyguard.parent.data.repository.AccessRequestRepository
 import com.familyguard.parent.data.repository.AccessRequestRepositoryImpl
 import com.familyguard.parent.data.repository.AuthRepository
 import com.familyguard.parent.data.repository.AuthRepositoryImpl
+import com.familyguard.parent.data.repository.CategoryRuleRepository
+import com.familyguard.parent.data.repository.CategoryRuleRepositoryImpl
 import com.familyguard.parent.data.repository.ChildRepository
 import com.familyguard.parent.data.repository.ChildRepositoryImpl
 import com.familyguard.parent.data.repository.DashboardRepository
 import com.familyguard.parent.data.repository.DashboardRepositoryImpl
 import com.familyguard.parent.data.repository.PairingRepository
 import com.familyguard.parent.data.repository.PairingRepositoryImpl
+import com.familyguard.parent.data.repository.ReportRepository
+import com.familyguard.parent.data.repository.ReportRepositoryImpl
 import com.familyguard.parent.data.repository.RuleRepository
 import com.familyguard.parent.data.repository.RuleRepositoryImpl
+import com.familyguard.parent.data.repository.ScheduleRepository
+import com.familyguard.parent.data.repository.ScheduleRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -50,4 +56,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAccessRequestRepository(impl: AccessRequestRepositoryImpl): AccessRequestRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindScheduleRepository(impl: ScheduleRepositoryImpl): ScheduleRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCategoryRuleRepository(impl: CategoryRuleRepositoryImpl): CategoryRuleRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindReportRepository(impl: ReportRepositoryImpl): ReportRepository
 }

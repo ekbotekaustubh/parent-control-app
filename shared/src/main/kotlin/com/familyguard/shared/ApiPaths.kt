@@ -32,6 +32,18 @@ object ApiPaths {
     const val CHILD_APP_RULE = "children/{childId}/apps/{packageName}/rule"
     const val CHILD_RULES = "children/{childId}/rules"
 
+    // Category rules
+    const val CHILD_CATEGORY_RULE = "children/{childId}/categories/{category}/rule"
+    const val CHILD_CATEGORY_RULES = "children/{childId}/category-rules"
+
+    // Schedules
+    const val CHILD_SCHEDULES = "children/{childId}/schedules"
+    const val CHILD_SCHEDULE_BY_ID = "children/{childId}/schedules/{scheduleId}"
+
+    // Reports & insights
+    const val CHILD_REPORT = "children/{childId}/report"
+    const val CHILD_INSIGHTS = "children/{childId}/insights"
+
     // Device-facing
     const val DEVICE_CONFIG = "device/config"
     const val DEVICE_USAGE_SYNC = "device/usage-sync"

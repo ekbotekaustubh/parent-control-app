@@ -9,7 +9,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 interface RuleRepository {
-    suspend fun upsertRule(childId: String, packageName: String, ruleType: RuleType, dailyLimitMinutes: Int?): Result<AppRuleResponse>
+    suspend fun upsertRule(
+        childId: String,
+        packageName: String,
+        ruleType: RuleType,
+        dailyLimitMinutes: Int?,
+        category: String? = null,
+        scheduleId: String? = null,
+    ): Result<AppRuleResponse>
     suspend fun getRules(childId: String): Result<List<AppRuleResponse>>
     suspend fun deleteRule(childId: String, packageName: String): Result<Unit>
 }
@@ -25,6 +32,8 @@ class RuleRepositoryImpl @Inject constructor(
         packageName: String,
         ruleType: RuleType,
         dailyLimitMinutes: Int?,
+        category: String?,
+        scheduleId: String?,
     ): Result<AppRuleResponse> = runCatching {
         api.upsertRule(
             childId = childId,
@@ -34,6 +43,8 @@ class RuleRepositoryImpl @Inject constructor(
                 // Only meaningful for ALLOW per docs/database-schema.md; omit for BLOCK so
                 // a stale limit from a prior ALLOW rule can't linger server-side.
                 dailyLimitMinutes = if (ruleType == RuleType.ALLOW) dailyLimitMinutes else null,
+                category = category,
+                scheduleId = scheduleId,
             ),
         )
     }.recoverCatching { throw errorMapper.toApiException(it) }
